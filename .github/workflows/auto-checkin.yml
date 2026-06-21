@@ -1,0 +1,27 @@
+name: 每日自动签到
+
+on:
+  schedule:
+    # 每天 UTC 0:00 执行（北京时间 8:00）
+    - cron: '0 0 * * *'
+  workflow_dispatch:   # 支持手动触发
+
+jobs:
+  checkin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: pip install requests
+
+      - name: 运行签到脚本
+        env:
+          CHECKIN_EMAIL: ${{ secrets.CHECKIN_EMAIL }}
+          CHECKIN_PASSWORD: ${{ secrets.CHECKIN_PASSWORD }}
+        run: python checkin.py

@@ -17,42 +17,60 @@ with sync_playwright() as p:
     page = context.new_page()
 
     # ---------- 登录 ----------
-    page.goto('https://aisearches.xyz/zh/signin')
-    page.wait_for_selector('input[name="email"]', timeout=15000)
-    page.fill('input[name="email"]', EMAIL)
-    page.fill('input[name="password"]', PASSWORD)
-    page.click('button[type="submit"]')          # 或 'button:has-text("登录")'
-    
-    # 等待登录成功（跳转到 explore 页面）
+    page.goto('https://aisearches.xyz/zh/signin', wait_until='networkidle')
+
+    # 等待邮箱输入框出现（通过占位符文字）
+    email_input = page.get_by_placeholder('邮箱')
+    # 如果中文占位符不生效，尝试英文
+    if not email_input.is_visible():
+        email_input = page.get_by_placeholder('Email')
+    email_input.wait_for(timeout=15000)
+    email_input.fill(EMAIL)
+
+    # 密码框
+    password_input = page.get_by_placeholder('密码')
+    if not password_input.is_visible():
+        password_input = page.get_by_placeholder('Password')
+    password_input.fill(PASSWORD)
+
+    # 点击登录按钮
+    login_button = page.get_by_role('button', name='登录')
+    if not login_button.is_visible():
+        login_button = page.get_by_role('button', name='Sign in')
+    login_button.click()
+
+    # 等待登录跳转或出现“签到”链接（说明已登录）
     try:
         page.wait_for_url('**/explore/**', timeout=15000)
         print('✅ 登录成功')
     except:
-        print('⚠️ 登录可能失败，检查页面截图 login_error.png')
-        page.screenshot(path='login_error.png')
-        sys.exit(1)
+        # 备用：等待“签到”或“退出”按钮出现
+        try:
+            page.wait_for_selector('text=签到', timeout=10000)
+            print('✅ 登录成功（通过文字判断）')
+        except:
+            print('❌ 登录可能失败，保存截图')
+            page.screenshot(path='login_error.png')
+            sys.exit(1)
 
     # ---------- 签到 ----------
-    page.goto('https://aisearches.xyz/zh/checkin')
-    page.wait_for_timeout(3000)      # 等待页面渲染
+    page.goto('https://aisearches.xyz/zh/checkin', wait_until='networkidle')
+    page.wait_for_timeout(3000)
 
-    # 尝试点击签到按钮（根据常见文案）
-    clicked = False
-    for btn_text in ['签到', '立即签到', '每日签到']:
-        try:
-            page.click(f'button:has-text("{btn_text}")', timeout=5000)
-            print(f'✅ 点击了“{btn_text}”按钮')
-            clicked = True
-            break
-        except:
-            continue
-    
-    if not clicked:
-        # 可能按钮是其他文案，或者已经签过到，截图保存现场
-        print('ℹ️ 未找到签到按钮（可能已签到或按钮文案不同），保存截图')
-    
-    # 等待结果并截图
+    # 尝试点击签到按钮（多种文案）
+    checkin_button = page.get_by_role('button', name='签到')
+    if not checkin_button.is_visible():
+        checkin_button = page.get_by_role('button', name='立即签到')
+    if not checkin_button.is_visible():
+        checkin_button = page.get_by_role('button', name='每日签到')
+
+    if checkin_button.is_visible():
+        checkin_button.click()
+        print('✅ 已点击签到按钮')
+    else:
+        print('ℹ️ 未找到签到按钮（可能已签到）')
+
     page.wait_for_timeout(3000)
     page.screenshot(path='checkin_result.png')
-    print('🎉 签到流程结束，结果截图已保存')
+    print('🎉 流程结束，截图已保存')
     browser.close()

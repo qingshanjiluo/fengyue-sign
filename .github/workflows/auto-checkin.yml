@@ -1,10 +1,9 @@
-name: 每日自动签到
+name: 每日自动签到（Playwright）
 
 on:
   schedule:
-    # 每天 UTC 0:00 执行（北京时间 8:00）
-    - cron: '0 0 * * *'
-  workflow_dispatch:   # 支持手动触发
+    - cron: '0 0 * * *'          # 每天 UTC 0:00（北京 8:00）
+  workflow_dispatch:
 
 jobs:
   checkin:
@@ -17,11 +16,22 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: 安装依赖
-        run: pip install requests
+      - name: 安装依赖（Playwright + 浏览器）
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
 
-      - name: 运行签到脚本
+      - name: 运行签到
         env:
           CHECKIN_EMAIL: ${{ secrets.CHECKIN_EMAIL }}
           CHECKIN_PASSWORD: ${{ secrets.CHECKIN_PASSWORD }}
-        run: python checkin.py
+        run: python checkin_playwright.py
+
+      - name: 上传截图（调试用）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkin-screenshots
+          path: |
+            checkin_result.png
+            login_error.png
